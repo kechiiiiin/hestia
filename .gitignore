@@ -1,0 +1,8 @@
+.hestia/config.env
+.hestia/log/
+discord-bot.md
+.claude/settings.local.json
+.DS_Store
+.idea
+journal/
+
