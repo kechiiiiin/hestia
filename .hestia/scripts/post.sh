@@ -18,8 +18,8 @@ if [[ -z "$QUESTION" ]]; then
   exit 0
 fi
 
-CONTENT=$(printf "❓ **%s:00**　%s" "$HOUR" "$QUESTION")
-PAYLOAD=$(jq -n --arg c "$CONTENT" '{content: $c}')
+CONTENT="$QUESTION"
+PAYLOAD=$(jq -n --arg c "$CONTENT" '{content: $c, username: "Hestia", avatar_url: "https://images.kechiiiiin.com/icon/20260427230742.jpeg"}')
 
 curl -sS -X POST -H "Content-Type: application/json" \
   -d "$PAYLOAD" \
