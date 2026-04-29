@@ -11,16 +11,24 @@ fi
 JOURNAL_DIR="$REPO_ROOT/journal"
 mkdir -p "$JOURNAL_DIR"
 
-TODAY=$(TZ=Asia/Tokyo date '+%Y-%m-%d')
+if [[ -n "${1:-}" ]]; then
+  TODAY="$1"
+else
+  TODAY=$(TZ=Asia/Tokyo date '+%Y-%m-%d')
+fi
 JOURNAL_FILE="$JOURNAL_DIR/$TODAY.md"
 TODAY_START_UTC=$(TZ=Asia/Tokyo date -j -f "%Y-%m-%d %H:%M:%S" "$TODAY 00:00:00" "+%s")
+TOMORROW=$(TZ=Asia/Tokyo date -j -v+1d -f "%Y-%m-%d" "$TODAY" "+%Y-%m-%d")
+TODAY_END_UTC=$(TZ=Asia/Tokyo date -j -f "%Y-%m-%d %H:%M:%S" "$TOMORROW 00:00:00" "+%s")
 
 MESSAGES=$(curl -sS -H "Authorization: Bot $DISCORD_BOT_TOKEN" \
-  "https://discord.com/api/v10/channels/$DISCORD_CHANNEL_ID/messages?limit=100")
+  "https://discord.com/api/v10/channels/$DISCORD_CHANNEL_ID/messages?limit=100" | \
+  python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin)))")
 
-TODAY_MSGS=$(echo "$MESSAGES" | jq --argjson start "$TODAY_START_UTC" '
+TODAY_MSGS=$(echo "$MESSAGES" | jq --argjson start "$TODAY_START_UTC" --argjson end "$TODAY_END_UTC" '
   map(select(
-    (.timestamp | sub("\\.[0-9]+"; "") | sub("\\+00:00"; "Z") | fromdateiso8601) >= $start
+    (.timestamp | sub("\\.[0-9]+"; "") | sub("\\+00:00"; "Z") | fromdateiso8601) >= $start and
+    (.timestamp | sub("\\.[0-9]+"; "") | sub("\\+00:00"; "Z") | fromdateiso8601) < $end
   )) | reverse
 ')
 
@@ -29,7 +37,7 @@ SECTIONS=$(echo "$TODAY_MSGS" | jq -r '
   | [range(0; length)] as $idxs
   | $idxs
   | map(. as $i | $msgs[$i] |
-      select(.webhook_id != null and (.content | test("^❓ \\*\\*\\d+:00\\*\\*")))
+      select(.webhook_id != null and (.content | test("^<@\\d+>")))
       | {idx: $i, content: .content}
     )
   | . as $qs
@@ -43,7 +51,7 @@ SECTIONS=$(echo "$TODAY_MSGS" | jq -r '
       | {header: $q.content, replies: .}
     )
   | .[]
-  | "## \(.header | sub("^❓ \\*\\*"; "") | sub("\\*\\*"; ""))\n\n" +
+  | "## \(.header | sub("^<@\\d+> "; "") | split("\n") | first)\n\n" +
     (if (.replies | length) == 0 then "_(回答なし)_\n"
      else (.replies | map("> " + (gsub("\n"; "\n> "))) | join("\n>\n")) + "\n"
      end)
