@@ -1,5 +1,6 @@
 .hestia/config.env
 .hestia/log/
+.hestia/task_last_id
 discord-bot.md
 .claude/settings.local.json
 .DS_Store
